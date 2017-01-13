@@ -60,6 +60,32 @@ var addSource2_frag="precision mediump float;\n"+
 "    gl_FragColor = vec4(value);\n"+
 "}\n"+
 "";
+var addSource3_frag="precision mediump float;\n"+
+"uniform sampler2D uVelDensityTexture;\n"+
+"varying vec2 vTextureCoord;\n"+
+"uniform vec4 uTime;\n"+
+"uniform vec4 uTexResolution;\n"+
+"uniform vec4 uSimResolution;\n"+
+"uniform vec4 uSliceResolution;\n"+
+"vec3 uvToIndexSpace(vec2 uv) {\n"+
+"    \n"+
+"    vec2 globalIndex = uv * uTexResolution.xy;\n"+
+"    vec2 iSliceIndex = floor(globalIndex / uSimResolution.xy);\n"+
+"    float iIndexZ = floor(iSliceIndex.y * uSliceResolution.x  + iSliceIndex.x + 0.5);\n"+
+"    vec2 localIndex = floor(mod(globalIndex, uSimResolution.xy));\n"+
+"    \n"+
+"    return vec3(localIndex, float(iIndexZ)) + vec3(0.5, 0.5, 0.5);\n"+
+"}\n"+
+"void main(void) {\n"+
+"    vec4 value =  texture2D(uVelDensityTexture, vTextureCoord);\n"+
+"    vec3 is = uvToIndexSpace(vTextureCoord);\n"+
+"    if (20.0 < is.y && is.y < 34.0 && 0.0 < is.x && is.x < 2.0 && 20.0 < is.z && is.z < 34.0) {\n"+
+"        value.x += 0.05;value.w += 0.0001;\n"+
+"    }\n"+
+
+"    gl_FragColor = vec4(value);\n"+
+"}\n"+
+"";
 var advectDensityStep_frag="precision mediump float;\n"+
 "uniform sampler2D uVelDensityTexture;\n"+
 "uniform sampler2D uPressureTexture;\n"+
@@ -154,6 +180,10 @@ var advectVelStep_frag="precision mediump float;\n"+
 "}\n"+
 "void main(void) {\n"+
 "    vec4 value =  texture2D(uVelDensityTexture, vTextureCoord);\n"+
+"    vec3 finalVelocity;\n"+
+"	 if(texture2D(uPressureTexture,vTextureCoord).z == 1.0){\n"+
+"	 	finalVelocity.xyz = vec3(0.0, 0.0, 0.0);\n"+
+"	 }else{\n"+
 "    vec3 wsPos = uvToIndexSpace(vTextureCoord) * uIsTs.xyz * uTsWs.xyz; // scaling\n"+
 "    float dt = uOption.x;\n"+
 "    vec3 wsVel = value.xyz;\n"+
@@ -175,13 +205,14 @@ var advectVelStep_frag="precision mediump float;\n"+
 "    vec4 v011 = texture2D(uVelDensityTexture, IndexSpaceToUV(vec3(iIs0.x, iIs1.y, iIs1.z), vec3(0, 0, 0)));\n"+
 "    vec4 v111 = texture2D(uVelDensityTexture, IndexSpaceToUV(vec3(iIs1.x, iIs1.y, iIs1.z), vec3(0, 0, 0)));\n"+
 "    \n"+
-"    vec3 finalVelocity = \n"+
+"    finalVelocity = \n"+
 "        st0.x * (\n"+
 "            st0.y * (st0.z * v000.xyz + st1.z * v001.xyz) +\n"+
 "            st1.y * (st0.z * v010.xyz + st1.z * v011.xyz)) +\n"+
 "        st1.x * (\n"+
 "            st0.y * (st0.z * v100.xyz + st1.z * v101.xyz) +\n"+
 "            st1.y * (st0.z * v110.xyz + st1.z * v111.xyz));\n"+
+"	 }\n"+
 "    gl_FragColor = vec4(finalVelocity.xyz, value.w);\n"+
 "}\n"+
 "";
@@ -403,14 +434,25 @@ var setupPressure_frag="precision mediump float;\n"+
 "}\n"+
 "void main(void) {\n"+
 "    vec3 is = uvToIndexSpace(vTextureCoord);\n"+
-"    \n"+
 "    float obstacle = texture2D(uPressureTexture,vTextureCoord).z;\n"+
 "    vec4 vx0 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3( 1, 0, 0)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 	vx0.x = 0.0;}\n"+
 "    vec4 vx1 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3(-1, 0, 0)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3(-1, 0, 0))).z == 1.0){\n"+
+"	 	vx1.x = 0.0;}\n"+
 "    vec4 vy0 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3( 0, 1, 0)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 1, 0))).z == 1.0){\n"+
+"	 	vy0.y = 0.0;}\n"+
 "    vec4 vy1 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3( 0,-1, 0)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, -1, 0))).z == 1.0){\n"+
+"	 	vy1.y = 0.0;}\n"+
 "    vec4 vz0 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3( 0, 0, 1)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, 1))).z == 1.0){\n"+
+"	 	vz0.z = 0.0;}\n"+
 "    vec4 vz1 =  texture2D(uVelDensityTexture, IndexSpaceToUV(is, vec3( 0, 0,-1)));\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, -1))).z == 1.0){\n"+
+"	 	vz1.z = 0.0;}\n"+
 "    float h = uOption.y;\n"+
 "    float div = -0.5 * h * (\n"+
 "        vx0.x - vx1.x + \n"+
@@ -474,11 +516,23 @@ var solvePressure_frag="precision mediump float;\n"+
 "    float obstacle = texture2D(uPressureTexture,vTextureCoord).z;\n"+
 "    vec3 is = uvToIndexSpace(vTextureCoord);\n"+
 "    float p0 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 	p0 = 0.0;}\n"+
 "    float p1 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3(-1, 0, 0))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3(-1, 0, 0))).z == 1.0){\n"+
+"	 	p1 = 0.0;}\n"+
 "    float p2 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 1, 0))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 1, 0))).z == 1.0){\n"+
+"	 	p2 = 0.0;}\n"+
 "    float p3 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0,-1, 0))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, -1, 0))).z == 1.0){\n"+
+"	 	p3 = 0.0;}\n"+
 "    float p4 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, 1))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, 1))).z == 1.0){\n"+
+"	 	p4 = 0.0;}\n"+
 "    float p5 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0,-1))).y;\n"+
+"     if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, -1))).z == 1.0){\n"+
+"	 	p5 = 0.0;}\n"+
 "    float div = texture2D(uPressureTexture, vTextureCoord).x;\n"+
 "    float newp = (div + p0 + p1 + p2 + p3 + p4 + p5) / 6.0;\n"+
 "    gl_FragColor = vec4(div, newp, obstacle, 0);\n"+
@@ -511,18 +565,36 @@ var updateVelocity_frag="precision mediump float;\n"+
 "    return (uSimResolution.xy * vec2(iSliceX, iSliceY) + vec2(isOrg.x, isOrg.y)) / uTexResolution.xy;\n"+
 "}\n"+
 "void main(void) {\n"+
-"    vec3 is = uvToIndexSpace(vTextureCoord);\n"+
-"    float p0 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).y;\n"+
-"    float p1 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3(-1, 0, 0))).y;\n"+
-"    float p2 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 1, 0))).y;\n"+
-"    float p3 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0,-1, 0))).y;\n"+
-"    float p4 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, 1))).y;\n"+
-"    float p5 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0,-1))).y;\n"+
-"    float h = uOption.y;\n"+
 "    vec4 vel = texture2D(uVelDensityTexture, vTextureCoord);\n"+
-"    vel.x -= 0.5 * (p0 - p1) / h;\n"+
-"    vel.y -= 0.5 * (p2 - p3) / h;\n"+
-"    vel.z -= 0.5 * (p4 - p5) / h;\n"+
+"	 if(texture2D(uPressureTexture,vTextureCoord).z == 1.0){\n"+
+"	 	vel.xyz = vec3(0,0,0);\n"+
+"	 }else{\n"+
+"	 	vec3 mask = vec3(1.0, 1.0, 1.0);\n"+
+"    	vec3 is = uvToIndexSpace(vTextureCoord);\n"+
+"   	float p0 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p0 = 0.0; mask.x = 0.0;}\n"+
+"   	float p1 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3(-1, 0, 0))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p1 = 0.0; mask.x = 0.0;}\n"+
+" 	  	float p2 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 1, 0))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p2 = 0.0; mask.y = 0.0;}\n"+
+"  	  	float p3 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0,-1, 0))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p3 = 0.0; mask.y = 0.0;}\n"+
+" 	  	float p4 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0, 1))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p4 = 0.0; mask.z = 0.0;}\n"+
+"  	  	float p5 =  texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 0, 0,-1))).y;\n"+
+" 		 if(texture2D(uPressureTexture, IndexSpaceToUV(is, vec3( 1, 0, 0))).z == 1.0){\n"+
+"	 			p5 = 0.0; mask.z = 0.0;}\n"+
+"  	  	float h = uOption.y;\n"+
+" 	  	vel.x -= 0.5 * (p0 - p1) / h;\n"+
+"	  	vel.y -= 0.5 * (p2 - p3) / h;\n"+
+"  	  	vel.z -= 0.5 * (p4 - p5) / h;\n"+
+"		vel.xyz *= mask;\n"+
+"	 }\n"+
 "    gl_FragColor = vec4(vel.xyz, vel.w);\n"+
 "}\n"+
 "";
@@ -560,5 +632,13 @@ var obstacle_frag="precision mediump float;\n"+
 "    }else{\n"+
 "    value.z = 0.0;}\n"+
 "    gl_FragColor = vec4(value);\n"+
+"}\n"+
+"";
+var assign_frag="precision mediump float;\n"+
+"uniform sampler2D uPressureTexture;\n"+
+"varying vec2 vTextureCoord;\n"+
+"void main(void){\n"+
+"	 vec4 value = texture2D(uPressureTexture,vTextureCoord);\n"+
+"	 gl_FragColor = vec4(value);\n"+
 "}\n"+
 "";

@@ -267,10 +267,12 @@ var solvePressureShader;
 
 var addSourceShader;
 var addSourceShader2;
+var addSourceShader3;
 
 var renderVolumeShader;
 
 var obstacleShader;
+var assignShader;
 
 
 function initShaders() {
@@ -285,6 +287,10 @@ function initShaders() {
     addSourceShader2 = initFluidShader(addSource2_frag, fluid_vert);
     obstacleShader = initFluidShader(obstacle_frag, fluid_vert);
     renderVolumeShader = initRenderVolumeShader(renderVolume_frag, fluid_vert);
+
+    addSourceShader3 = initFluidShader(addSource3_frag, fluid_vert); 
+
+    assignShader  = initFluidShader(assign_frag, fluid_vert);
 
 }
 
@@ -536,9 +542,12 @@ function updateFluid() {
         update(velDensityRT[c0], null, velDensityRT[c1], addSourceShader);
     } else if (gParameter.addSource == 'side') {
         update(velDensityRT[c0], null, velDensityRT[c1], addSourceShader2);
+    } else if (gParameter.addSource == 'wind') {
+        update(velDensityRT[c0], null, velDensityRT[c1], addSourceShader3);
     }
 
     //set obstacle
+    update(null, pressureRT[c0], pressureRT[c1], assignShader);
     update(null, pressureRT[c1],pressureRT[c0], obstacleShader);
 
     // Project
@@ -652,7 +661,7 @@ function webGLStart() {
     var gui = new dat.GUI();
     gui.add(gParameter, 'iteration').min(1).max(10).step(1);
     gui.add(gParameter, 'densityScale').min(0.1).max(50).step(0.1);
-    gui.add(gParameter, 'addSource', [ 'bottom', 'side'] );
+    gui.add(gParameter, 'addSource', [ 'bottom', 'side','wind'] );
     gui.add(gParameter, 'clear');
     gui.add(gParameter, 'showSimTexture');
     gui.add(gParameter, 'halfResolution');
